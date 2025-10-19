@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnitrix Chat Widget</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="chat-container" class="chat-container">
+        <!-- User Registration Form -->
+        <div id="user-registration" class="user-registration">
+            <div class="registration-header">
+                <div class="registration-logo">
+                    <span class="avatar-icon">🤖</span>
+                </div>
+                <h3 class="registration-title">Welcome to Support</h3>
+                <p class="registration-subtitle">Please provide your details to start the conversation</p>
+                <button id="registration-close-btn" class="control-btn registration-close" title="Close">
+                    <span>×</span>
+                </button>
+            </div>
+            
+            <div class="registration-content">
+                <form id="user-registration-form" class="registration-form">
+                    <div class="form-group">
+                        <label for="user-name">Full Name *</label>
+                        <input type="text" id="user-name" name="name" required placeholder="Enter your full name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="user-email">Email Address *</label>
+                        <input type="email" id="user-email" name="email" required placeholder="Enter your email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="user-phone">Mobile Number *</label>
+                        <input type="tel" id="user-phone" name="phone" required placeholder="Enter your mobile number">
+                    </div>
+                    
+                    <div class="form-group" id="subject-group">
+                        <label for="user-subject">Subject (Optional)</label>
+                        <input type="text" id="user-subject" name="subject" placeholder="Brief description of your inquiry">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" id="start-chat-btn" class="btn-primary">
+                            <span class="btn-text">Start Chat</span>
+                            <span class="btn-loading" style="display: none;">
+                                <span class="loading-spinner"></span>
+                                Verifying...
+                            </span>
+                        </button>
+                    </div>
+                    
+                    <div class="privacy-notice">
+                        <small>Your information is secure and will only be used for support purposes.</small>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- OTP Verification (Hidden by default) -->
+        <div id="otp-verification" class="otp-verification" style="display: none;">
+            <div class="otp-header">
+                <div class="otp-logo">
+                    <span class="avatar-icon">📱</span>
+                </div>
+                <h3 class="otp-title">Verify Your Number</h3>
+                <p class="otp-subtitle">We've sent a verification code to <span id="masked-phone"></span></p>
+                <button id="otp-close-btn" class="control-btn otp-close" title="Close">
+                    <span>×</span>
+                </button>
+            </div>
+            
+            <div class="otp-content">
+                <form id="otp-verification-form" class="otp-form">
+                    <div class="otp-input-group">
+                        <input type="text" id="otp-digit-1" class="otp-digit" maxlength="1" pattern="[0-9]">
+                        <input type="text" id="otp-digit-2" class="otp-digit" maxlength="1" pattern="[0-9]">
+                        <input type="text" id="otp-digit-3" class="otp-digit" maxlength="1" pattern="[0-9]">
+                        <input type="text" id="otp-digit-4" class="otp-digit" maxlength="1" pattern="[0-9]">
+                        <input type="text" id="otp-digit-5" class="otp-digit" maxlength="1" pattern="[0-9]">
+                        <input type="text" id="otp-digit-6" class="otp-digit" maxlength="1" pattern="[0-9]">
+                    </div>
+                    
+                    <div class="otp-actions">
+                        <button type="submit" id="verify-otp-btn" class="btn-primary">
+                            <span class="btn-text">Verify & Continue</span>
+                            <span class="btn-loading" style="display: none;">
+                                <span class="loading-spinner"></span>
+                                Verifying...
+                            </span>
+                        </button>
+                    </div>
+                    
+                    <div class="otp-resend">
+                        <span id="otp-timer">Resend code in <span id="timer-countdown">60</span>s</span>
+                        <button type="button" id="resend-otp-btn" class="link-btn" style="display: none;">
+                            Resend Code
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chat Interface (Hidden by default) -->
+        <div id="chat-interface" class="chat-interface" style="display: none;">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <div class="agent-avatar">
+                        <span class="avatar-icon">🤖</span>
+                    </div>
+                    <div class="agent-details">
+                        <span class="agent-name">Support Agent</span>
+                        <span class="agent-status">Online</span>
+                    </div>
+                </div>
+                <div class="chat-controls">
+                    <button id="close-btn" class="control-btn" title="Close">
+                        <span>×</span>
+                    </button>
+                </div>
+                
+            </div>
+
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="chat-messages">
+            <div class="message agent-message">
+                <div class="message-avatar">
+                    <span class="avatar-icon">🤖</span>
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        Hello! How can I help you today?
+                    </div>
+                    <div class="message-time">
+                        <span id="initial-time"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div id="typing-indicator" class="typing-indicator" style="display: none;">
+            <div class="message-avatar">
+                <span class="avatar-icon">🤖</span>
+            </div>
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+                <button id="attach-btn" class="attach-btn" title="Attach Image">
+                    <span>📎</span>
+                </button>
+                <input 
+                    type="text" 
+                    id="message-input" 
+                    class="message-input" 
+                    placeholder="Type your message..."
+                    maxlength="1000"
+                >
+                <button id="send-btn" class="send-btn" title="Send Message">
+                    <span>➤</span>
+                </button>
+            </div>
+        </div>
+        </div> <!-- End chat-interface -->
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="image-modal" class="image-modal" style="display: none;">
+        <div class="image-modal-content">
+            <span class="image-modal-close">&times;</span>
+            <img id="modal-image" src="" alt="Image preview">
+        </div>
+    </div>
+
+    <script src="lib/socket.js"></script>
+    <script>
+        // Initialize chat widget
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial timestamp
+            document.getElementById('initial-time').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Initialize chat functionality
+            if (window.ChatWidget) {
+                window.ChatWidget.init();
+            }
+        });
+    </script>
+</body>
+</html>

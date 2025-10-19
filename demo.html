@@ -1,0 +1,463 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnitrix Chat Widget - Powerful Frontend Chat Solution</title>
+    <meta name="description" content="Embed a powerful, customizable chat widget on any website. Frontend-only solution with real-time simulation, multi-tenant support, and responsive design.">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="demo.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Hero Section -->
+    <section class="hero text-white text-center py-5">
+        <div class="container">
+            <h1 class="display-4 fw-bold">Omnitrix Chat Widget</h1>
+            <p class="lead">Powerful Frontend Chat Solution</p>
+            <p class="mb-4">
+                Embed a professional, customizable chat widget on any website. 
+                Frontend-only solution with real-time simulation, multi-tenant support, 
+                and responsive design that works everywhere.
+            </p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                <button class="btn btn-light btn-lg px-4 gap-3" onclick="OmnitrixChat.open()">Try Live Demo</button>
+                <a href="#integration" class="btn btn-outline-light btn-lg px-4">View Integration</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <h3 class="display-5 fw-bold">0kb</h3>
+                    <p class="text-muted">Dependencies</p>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <h3 class="display-5 fw-bold">< 5min</h3>
+                    <p class="text-muted">Setup Time</p>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <h3 class="display-5 fw-bold">100%</h3>
+                    <p class="text-muted">Frontend</p>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <h3 class="display-5 fw-bold">∞</h3>
+                    <p class="text-muted">Customizable</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Why Choose Omnitrix Chat Widget?</h2>
+                <p class="lead text-muted">
+                    Built for developers who need a reliable, customizable chat solution 
+                    that works out of the box without complex backend setup.
+                </p>
+            </div>
+            
+            <div class="row">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-chat-dots-fill"></i></div>
+                            <h5 class="card-title">Real-time Chat Simulation</h5>
+                            <p class="card-text">Intelligent agent responses with typing indicators and realistic delays.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-palette-fill"></i></div>
+                            <h5 class="card-title">Multi-tenant Theming</h5>
+                            <p class="card-text">Customizable colors, branding, and agent names for different tenants.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-phone-fill"></i></div>
+                            <h5 class="card-title">Responsive Design</h5>
+                            <p class="card-text">Works perfectly on desktop and mobile devices with adaptive layouts.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-image-fill"></i></div>
+                            <h5 class="card-title">Image Support</h5>
+                            <p class="card-text">Send and preview images with full-screen modal view capability.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-plugin-fill"></i></div>
+                            <h5 class="card-title">Easy Integration</h5>
+                            <p class="card-text">Multiple embedding options: script injection or direct iframe.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="feature-icon mb-3"><i class="bi bi-gear-fill"></i></div>
+                            <h5 class="card-title">Backend Ready</h5>
+                            <p class="card-text">Extensible architecture ready for real backend integration.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Demo Section -->
+    <section class="section">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Interactive Demo</h2>
+                <p class="lead text-muted">
+                    Try out different configurations and see how they affect the chat widget in real-time.
+                </p>
+            </div>
+            
+            <div class="card text-center mb-4">
+                <div class="card-body">
+                    <p class="mb-0">
+                        <span id="widget-status-indicator" class="spinner-grow spinner-grow-sm text-success" role="status"></span>
+                        <strong class="ms-2">Widget Status:</strong> <span id="widget-status">Loading...</span>
+                    </p>
+                    <p class="mb-0"><strong class="ms-2">Current Configuration:</strong> <span id="current-config">Default</span></p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🎨 Theme Colors</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="changeTheme('#0047AB')">Blue (Default)</button>
+                                <button class="btn btn-danger" onclick="changeTheme('#e74c3c')">Red</button>
+                                <button class="btn btn-success" onclick="changeTheme('#27ae60')">Green</button>
+                                <button class="btn btn-warning" onclick="changeTheme('#f39c12')">Orange</button>
+                                <button class="btn btn-info" onclick="changeTheme('#9b59b6')">Purple</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🏢 Tenant Examples</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="changeTenant('grameenphone', '#0047AB', 'GP Support')">Grameenphone</button>
+                                <button class="btn btn-outline-danger" onclick="changeTenant('robi', '#e74c3c', 'Robi Care')">Robi</button>
+                                <button class="btn btn-outline-warning" onclick="changeTenant('banglalink', '#f39c12', 'Banglalink Help')">Banglalink</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🔐 Authentication</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-secondary" onclick="setAuthMode('full')" id="auth-full">Full Auth</button>
+                                <button class="btn btn-secondary" onclick="setAuthMode('registration')" id="auth-registration">Registration Only</button>
+                                <button class="btn btn-secondary" onclick="setAuthMode('none')" id="auth-none">Skip Auth</button>
+                            </div>
+                            <small id="auth-status-text" class="text-muted d-block mt-2">Current: Full Authentication</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">📞 OTP Configuration</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-dark" onclick="changeOTP('123456')" id="otp-default">Default (123456)</button>
+                                <button class="btn btn-dark" onclick="changeOTP('111111')" id="otp-easy">Easy (111111)</button>
+                                <button class="btn btn-dark" onclick="changeOTP('999999')" id="otp-nines">Nines (999999)</button>
+                            </div>
+                            <small id="otp-status-text" class="text-muted d-block mt-2">Current OTP: 123456</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🎛️ Widget Controls</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="OmnitrixChat.open()">Open</button>
+                                <button class="btn btn-primary" onclick="OmnitrixChat.close()">Close</button>
+                                <button class="btn btn-primary" onclick="OmnitrixChat.toggle()">Toggle</button>
+                                <button class="btn btn-outline-secondary" onclick="sendTestMessage()">Send Test Message</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🔄 Reset & Test</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-danger" onclick="resetWidget()">Reset Widget</button>
+                                <button class="btn btn-info" onclick="getUserData()">Get User Data</button>
+                                <button class="btn btn-warning" onclick="clearUserData()">Clear User Data</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Integration Section -->
+    <section id="integration" class="section bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">🛠️ Integration Methods</h2>
+            </div>
+
+            <ul class="nav nav-tabs justify-content-center" id="integration-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="script-tab-btn" data-bs-toggle="tab" data-bs-target="#script-tab" type="button" role="tab">Script Embed</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="iframe-tab-btn" data-bs-toggle="tab" data-bs-target="#iframe-tab" type="button" role="tab">iFrame Embed</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="config-tab-btn" data-bs-toggle="tab" data-bs-target="#config-tab" type="button" role="tab">Configuration</button>
+                </li>
+            </ul>
+
+            <div class="tab-content mt-4" id="integration-tabs-content">
+                <div class="tab-pane fade show active" id="script-tab" role="tabpanel">
+                    <div class="code-block">
+<pre><code>&lt;!-- Basic Integration --&gt;
+&lt;script src="path/to/chat-widget/widget.js"&gt;&lt;/script&gt;
+
+&lt;!-- With Configuration --&gt;
+&lt;script&gt;
+window.OMNITRIX_CONFIG = {
+    tenantId: 'your-tenant-id',
+    themeColor: '#0047AB',
+    agentName: 'Support Agent',
+    position: 'bottom-right',
+    autoOpen: false
+};
+&lt;/script&gt;
+&lt;script src="path/to/chat-widget/widget.js"&gt;&lt;/script&gt;
+</code></pre>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="iframe-tab" role="tabpanel">
+                    <div class="code-block">
+<pre><code>&lt;!-- Basic iFrame --&gt;
+&lt;iframe 
+    src="path/to/chat-widget/index.html"
+    width="400" 
+    height="600"
+    frameborder="0"
+    style="border-radius: 12px;"&gt;
+&lt;/iframe&gt;
+
+&lt;!-- With Parameters --&gt;
+&lt;iframe 
+    src="path/to/chat-widget/index.html?tenantId=grameenphone&amp;themeColor=%230047AB&amp;agentName=GP%20Support"
+    width="400" 
+    height="600"
+    frameborder="0"&gt;
+&lt;/iframe&gt;
+</code></pre>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="config-tab" role="tabpanel">
+                    <div class="code-block">
+<pre><code>window.OMNITRIX_CONFIG = {
+    tenantId: 'your-company',
+    themeColor: '#0047AB',
+    agentName: 'Support Agent',
+    position: 'bottom-right',
+    autoOpen: false,
+    // ... and more
+};
+</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>&copy; 2025 Omnitrix Chat Widget. All Rights Reserved.</p>
+            <p><a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Initialize the chat widget -->
+    <script>
+        // Load saved configuration or use defaults
+        function loadInitialConfig() {
+            const defaultConfig = {
+                tenantId: 'demo',
+                themeColor: '#0047AB',
+                agentName: 'Demo Agent',
+                position: 'bottom-right',
+                autoOpen: false,
+                requireRegistration: true,
+                requireOTPVerification: true,
+                defaultOTP: '123456'
+            };
+            
+            try {
+                const saved = localStorage.getItem('omnitrix_demo_config');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    return { ...defaultConfig, ...parsed.config };
+                }
+            } catch (e) {
+                console.warn('Failed to load saved config:', e);
+            }
+            
+            return defaultConfig;
+        }
+        
+        // Configuration for this demo
+        window.OMNITRIX_CONFIG = loadInitialConfig();
+    </script>
+    <script src="widget.js"></script>
+
+    <script>
+        // Demo functionality
+        const STORAGE_KEY = 'omnitrix_demo_config';
+        
+        let currentConfig = window.OMNITRIX_CONFIG;
+        let currentAuthMode = 'full';
+        let currentOTP = '123456';
+
+        function saveConfig() {
+            // ... (save logic remains the same)
+        }
+
+        function updateStatus() {
+            const statusEl = document.getElementById('widget-status');
+            const configEl = document.getElementById('current-config');
+            const statusIndicator = document.getElementById('widget-status-indicator');
+
+            if (window.OmnitrixChat) {
+                statusEl.textContent = 'Active';
+                statusIndicator.classList.remove('spinner-grow', 'text-danger');
+                statusIndicator.classList.add('spinner-grow', 'text-success');
+                configEl.textContent = `${currentConfig.tenantId} - ${currentConfig.themeColor}`;
+            } else {
+                statusEl.textContent = 'Loading...';
+                statusIndicator.classList.add('spinner-grow', 'text-danger');
+                configEl.textContent = 'N/A';
+            }
+        }
+
+        function changeTheme(color) {
+            currentConfig.themeColor = color;
+            OmnitrixChat.updateConfig({ themeColor: color });
+            saveConfig();
+            updateStatus();
+        }
+
+        function changeTenant(tenantId, themeColor, agentName) {
+            currentConfig = { ...currentConfig, tenantId, themeColor, agentName };
+            OmnitrixChat.updateConfig({ tenantId, themeColor, agentName });
+            saveConfig();
+            updateStatus();
+        }
+
+        function setAuthMode(mode) {
+            currentAuthMode = mode;
+            let authConfig = {};
+            switch(mode) {
+                case 'full': authConfig = { requireRegistration: true, requireOTPVerification: true }; break;
+                case 'registration': authConfig = { requireRegistration: true, requireOTPVerification: false }; break;
+                case 'none': authConfig = { requireRegistration: false, requireOTPVerification: false }; break;
+            }
+            currentConfig = { ...currentConfig, ...authConfig };
+            OmnitrixChat.updateConfig(authConfig);
+            saveConfig();
+            updateStatus();
+            document.getElementById('auth-status-text').textContent = `Current: ${mode}`;
+        }
+        
+        function changeOTP(otp) {
+            currentOTP = otp;
+            currentConfig.defaultOTP = otp;
+            OmnitrixChat.updateConfig({ defaultOTP: otp });
+            saveConfig();
+            updateStatus();
+            document.getElementById('otp-status-text').textContent = `Current OTP: ${otp}`;
+        }
+
+        function sendTestMessage() {
+            OmnitrixChat.sendMessage('This is a test message from the demo page!');
+            if (!OmnitrixChat.isOpen()) {
+                OmnitrixChat.open();
+            }
+        }
+
+        function resetWidget() {
+            localStorage.removeItem(STORAGE_KEY);
+            window.location.reload();
+        }
+
+        function getUserData() {
+            const userData = window.ChatWidget.getCurrentUser();
+            alert(JSON.stringify(userData, null, 2));
+        }
+
+        function clearUserData() {
+            // This is a bit of a hack for the demo, in a real app you'd have a proper method
+            if (confirm('Clear user data? This will reset the authentication state.')) {
+                OmnitrixChat.close();
+                // By setting a random tenant, we effectively clear the stored user data for the current tenant
+                OmnitrixChat.updateConfig({ tenantId: `demo_${Math.random()}` }); 
+                alert('User data cleared.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            setInterval(updateStatus, 2000);
+        });
+    </script>
+</body>
+</html>
