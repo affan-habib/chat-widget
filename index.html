@@ -156,9 +156,9 @@
 
         <!-- Chat Input -->
         <div class="chat-input-container">
-            <div class="chat-input-wrapper">
+            <form id="message-form" class="chat-input-wrapper">
                 <input type="file" id="file-input" accept="image/*" style="display: none;">
-                <button id="attach-btn" class="attach-btn" title="Attach Image">
+                <button type="button" id="attach-btn" class="attach-btn" title="Attach Image">
                     <span>📎</span>
                 </button>
                 <input 
@@ -167,11 +167,12 @@
                     class="message-input" 
                     placeholder="Type your message..."
                     maxlength="1000"
+                    required
                 >
-                <button id="send-btn" class="send-btn" title="Send Message">
+                <button type="submit" id="send-btn" class="send-btn" title="Send Message">
                     <span>➤</span>
                 </button>
-            </div>
+            </form>
         </div>
         </div> <!-- End chat-interface -->
     </div>
@@ -184,16 +185,949 @@
         </div>
     </div>
 
-    <script src="lib/socket.js"></script>
     <script>
+        // Configuration and state
+        let config = {
+            tenantId: 'default',
+            themeColor: '#0047AB',
+            agentName: 'Support Agent',
+            welcomeMessage: 'Hello! How can I help you today?',
+            responseDelay: { min: 1000, max: 2500 },
+            maxFileSize: 5 * 1024 * 1024, // 5MB
+            allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+            requireRegistration: true,
+            requireOTPVerification: true,
+            defaultOTP: '123456',
+            baseUrl: ''
+        };
+
+        let currentUser = null;
+        let apiBaseUrl = '';
+
+        // Token management functions
+        function saveUserSession(userData) {
+            try {
+                const sessionData = {
+                    user: userData,
+                    timestamp: Date.now(),
+                    tenantId: config.tenantId
+                };
+                localStorage.setItem('omnitrix_chat_session', JSON.stringify(sessionData));
+                console.log('User session saved to localStorage');
+            } catch (error) {
+                console.error('Failed to save user session:', error);
+            }
+        }
+
+        function loadUserSession() {
+            try {
+                const sessionData = localStorage.getItem('omnitrix_chat_session');
+                if (!sessionData) return null;
+
+                const parsed = JSON.parse(sessionData);
+                
+                // Check if session is for the same tenant
+                if (parsed.tenantId !== config.tenantId) {
+                    console.log('Session tenant mismatch, clearing session');
+                    clearUserSession();
+                    return null;
+                }
+
+                // Check if token is expired (if token_expires_at is provided)
+                if (parsed.user && parsed.user.token_expires_at) {
+                    const expiryTime = new Date(parsed.user.token_expires_at).getTime();
+                    if (Date.now() > expiryTime) {
+                        console.log('Token expired, clearing session');
+                        clearUserSession();
+                        return null;
+                    }
+                }
+
+                // Check if session is older than 24 hours (fallback expiry)
+                const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+                if (Date.now() - parsed.timestamp > maxAge) {
+                    console.log('Session too old, clearing session');
+                    clearUserSession();
+                    return null;
+                }
+
+                console.log('User session loaded from localStorage');
+                return parsed.user;
+            } catch (error) {
+                console.error('Failed to load user session:', error);
+                clearUserSession();
+                return null;
+            }
+        }
+
+        function clearUserSession() {
+            try {
+                localStorage.removeItem('omnitrix_chat_session');
+                console.log('User session cleared');
+            } catch (error) {
+                console.error('Failed to clear user session:', error);
+            }
+        }
+
+        function isUserAuthenticated() {
+            return currentUser && currentUser.token && currentUser.is_verified;
+        }
+
+        // API Functions
+        async function initiateChat(name, phone, email) {
+            const endpoint = `${apiBaseUrl}/api/v1/customer/initiate-chat`;
+            const payload = { name, phone, email };
+
+            console.log('Initiating chat with payload:', payload);
+            console.log('Using endpoint:', endpoint);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('Chat initiation successful:', data);
+                console.log('Request:', JSON.stringify(payload));
+                console.log('Response:', JSON.stringify(data));
+                
+                return data;
+            } catch (error) {
+                console.error('Error initiating chat:', error);
+                console.error('Request details:', { endpoint, payload });
+                throw error;
+            }
+        }
+
+        async function verifyOtp(email, otp) {
+            const endpoint = `${apiBaseUrl}/api/v1/customer/verify-otp`;
+            const payload = { email, otp };
+
+            console.log('Verifying OTP with payload:', payload);
+            console.log('Using endpoint:', endpoint);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('OTP verification successful:', data);
+                console.log('Request:', JSON.stringify(payload));
+                console.log('Response:', JSON.stringify(data));
+                return data;
+            } catch (error) {
+                console.error('Error verifying OTP:', error);
+                console.error('Request details:', { endpoint, payload });
+                throw error;
+            }
+        }
+
+        async function getConversations(token) {
+            const endpoint = `${apiBaseUrl}/api/v1/customer/website/conversations`;
+
+            console.log('Fetching conversations with token:', token);
+            console.log('Using endpoint:', endpoint);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('Conversations fetched successfully:', data);
+                console.log('Response:', JSON.stringify(data));
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching conversations:', error);
+                console.error('Request details:', { endpoint, token: `Bearer ${token}` });
+                throw error;
+            }
+        }
+
+        async function getConversationMessages(conversationId, token) {
+            const endpoint = `${apiBaseUrl}/api/v1/customer/website/conversations/${conversationId}/messages`;
+
+            console.log('Fetching messages for conversation:', conversationId);
+            console.log('Using endpoint:', endpoint);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('Messages fetched successfully:', data);
+                console.log('Response:', JSON.stringify(data));
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching conversation messages:', error);
+                console.error('Request details:', { endpoint, conversationId, token: `Bearer ${token}` });
+                throw error;
+            }
+        }
+
+        async function sendMessage(message, token) {
+            const endpoint = `${apiBaseUrl}/api/v1/webhook/website`;
+            const payload = { content: message };
+
+            console.log('Sending message with payload:', payload);
+            console.log('Using endpoint:', endpoint);
+            console.log('Using token:', token);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('Message sent successfully:', data);
+                console.log('Request:', JSON.stringify(payload));
+                console.log('Response:', JSON.stringify(data));
+                
+                return data;
+            } catch (error) {
+                console.error('Error sending message:', error);
+                console.error('Request details:', { endpoint, payload, token: `Bearer ${token}` });
+                throw error;
+            }
+        }
+
+        async function resendOtp(email) {
+            const endpoint = `${apiBaseUrl}/api/v1/customer/resend-otp`;
+            const payload = { email };
+
+            console.log('Resending OTP with payload:', payload);
+            console.log('Using endpoint:', endpoint);
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('OTP resend successful:', data);
+                console.log('Request:', JSON.stringify(payload));
+                console.log('Response:', JSON.stringify(data));
+                return data;
+            } catch (error) {
+                console.error('Error resending OTP:', error);
+                console.error('Request details:', { endpoint, payload });
+                throw error;
+            }
+        }
+
+        // Initialize configuration
+        function initializeConfig() {
+            console.log('Initial config:', config);
+            
+            // Apply global config
+            if (window.OMNITRIX_CONFIG) {
+                config = { ...config, ...window.OMNITRIX_CONFIG };
+                console.log('After global config:', config);
+            }
+            
+            // Apply URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            console.log('URL params:', urlParams.toString());
+            
+            if (urlParams.get('tenantId')) config.tenantId = urlParams.get('tenantId');
+            if (urlParams.get('themeColor')) config.themeColor = urlParams.get('themeColor');
+            if (urlParams.get('agentName')) config.agentName = urlParams.get('agentName');
+            if (urlParams.get('requireRegistration') !== null) {
+                config.requireRegistration = urlParams.get('requireRegistration') === 'true';
+            }
+            if (urlParams.get('requireOTPVerification') !== null) {
+                config.requireOTPVerification = urlParams.get('requireOTPVerification') === 'true';
+            }
+            if (urlParams.get('defaultOTP')) config.defaultOTP = urlParams.get('defaultOTP');
+            if (urlParams.get('baseUrl')) config.baseUrl = urlParams.get('baseUrl');
+            
+            console.log('Final config:', config);
+            
+            // Set API base URL
+            if (config.baseUrl && config.baseUrl.trim() !== '') {
+                apiBaseUrl = config.baseUrl.trim();
+                // Remove trailing slash if present
+                if (apiBaseUrl.endsWith('/')) {
+                    apiBaseUrl = apiBaseUrl.slice(0, -1);
+                }
+            } else {
+                apiBaseUrl = window.location.origin;
+            }
+            console.log('API Base URL:', apiBaseUrl);
+            
+            // Validate that we have a proper URL
+            if (!apiBaseUrl || apiBaseUrl === '' || !apiBaseUrl.startsWith('http')) {
+                console.error('Invalid API Base URL:', apiBaseUrl);
+                console.error('Config:', config);
+                alert('API configuration error. Please check the baseUrl setting.');
+            }
+        }
+
+        // Screen navigation functions
+        function showOTPVerification() {
+            document.getElementById('user-registration').style.display = 'none';
+            document.getElementById('otp-verification').style.display = 'flex';
+            document.getElementById('chat-interface').style.display = 'none';
+            
+            // Set masked phone number
+            if (currentUser && currentUser.phone) {
+                document.getElementById('masked-phone').textContent = maskPhoneNumber(currentUser.phone);
+            }
+            
+            // Focus first OTP input
+            document.getElementById('otp-digit-1').focus();
+        }
+
+        async function showChatInterface() {
+            document.getElementById('user-registration').style.display = 'none';
+            document.getElementById('otp-verification').style.display = 'none';
+            document.getElementById('chat-interface').style.display = 'flex';
+            
+            // Display conversation history if available
+            if (currentUser && currentUser.conversations) {
+                await displayConversationHistory(currentUser.conversations);
+            }
+            
+            // Focus message input
+            const messageInput = document.getElementById('message-input');
+            if (messageInput) {
+                messageInput.focus();
+            }
+        }
+
+        function showRegistrationForm() {
+            document.getElementById('user-registration').style.display = 'flex';
+            document.getElementById('otp-verification').style.display = 'none';
+            document.getElementById('chat-interface').style.display = 'none';
+        }
+
+        // Utility functions
+        function maskPhoneNumber(phone) {
+            if (phone.length >= 4) {
+                return '*'.repeat(phone.length - 4) + phone.slice(-4);
+            }
+            return phone;
+        }
+
+        function initializeChatInterface() {
+            console.log('Initializing chat interface...');
+            console.log('requireRegistration:', config.requireRegistration);
+            console.log('requireOTPVerification:', config.requireOTPVerification);
+            
+            // Try to load existing session first
+            const savedUser = loadUserSession();
+            if (savedUser && savedUser.token && savedUser.is_verified) {
+                console.log('Found valid saved session, loading chat directly');
+                currentUser = savedUser;
+                
+                // Load conversations and go directly to chat
+                loadConversationsAndShowChat();
+                return;
+            }
+            
+            if (!config.requireRegistration) {
+                // Skip registration, go directly to chat
+                showChatInterface();
+            } else {
+                // Show registration form first
+                showRegistrationForm();
+            }
+
+            // Apply theming
+            if (config.themeColor) {
+                document.documentElement.style.setProperty('--primary-color', config.themeColor);
+            }
+            
+            if (config.agentName) {
+                const agentNameEl = document.querySelector('.agent-name');
+                if (agentNameEl) {
+                    agentNameEl.textContent = config.agentName;
+                }
+            }
+
+            // Setup close buttons
+            document.getElementById('registration-close-btn')?.addEventListener('click', handleClose);
+            document.getElementById('otp-close-btn')?.addEventListener('click', handleClose);
+            document.getElementById('close-btn')?.addEventListener('click', handleClose);
+
+            // Setup logout functionality (if there's a logout button in your HTML)
+            document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+            // Setup OTP input handlers
+            setupOTPInputs();
+        }
+
+        function setupOTPInputs() {
+            const otpInputs = document.querySelectorAll('.otp-digit');
+            otpInputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    
+                    // Only allow numbers
+                    if (!/^\d$/.test(value)) {
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    // Add filled class
+                    e.target.classList.add('filled');
+                    
+                    // Move to next input
+                    if (index < otpInputs.length - 1) {
+                        otpInputs[index + 1].focus();
+                    }
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        // Move to previous input on backspace
+                        otpInputs[index - 1].focus();
+                        otpInputs[index - 1].classList.remove('filled');
+                    }
+                });
+
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pastedData = e.clipboardData.getData('text');
+                    const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+                    
+                    // Fill OTP inputs
+                    for (let i = 0; i < digits.length; i++) {
+                        if (otpInputs[i]) {
+                            otpInputs[i].value = digits[i];
+                            otpInputs[i].classList.add('filled');
+                        }
+                    }
+                    
+                    // Focus appropriate input
+                    const nextEmptyIndex = digits.length;
+                    if (nextEmptyIndex < otpInputs.length) {
+                        otpInputs[nextEmptyIndex].focus();
+                    }
+                });
+            });
+        }
+
+        function handleClose() {
+            console.log('Close button clicked');
+            
+            if (window.ReactNativeWebView) {
+                // In React Native WebView - send message to the app
+                console.log('Closing in React Native WebView');
+                window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'close' }));
+            } else if (window.parent !== window) {
+                // In iframe - send message to parent
+                console.log('Closing iframe, sending message to parent');
+                window.parent.postMessage({ action: 'close' }, '*');
+            } else {
+                // Standalone - hide the chat container or redirect
+                console.log('Closing in standalone mode');
+                const chatContainer = document.getElementById('chat-container');
+                if (chatContainer) {
+                    chatContainer.style.display = 'none';
+                    console.log('Chat container hidden');
+                    
+                    // For demo page, also show a message or redirect
+                    setTimeout(() => {
+                        if (confirm('Chat closed. Would you like to reopen it?')) {
+                            chatContainer.style.display = 'flex';
+                            showRegistrationForm();
+                        }
+                    }, 500);
+                } else {
+                    console.error('Chat container not found');
+                }
+            }
+        }
+
+        function logout() {
+            clearUserSession();
+            currentUser = null;
+            showRegistrationForm();
+            
+            // Clear messages container
+            const messagesContainer = document.getElementById('chat-messages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = '';
+            }
+            
+            console.log('User logged out');
+        }
+
+        // Chat message functions
+        function addMessageToChat(content, type, timestamp) {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) {
+                console.error('Messages container not found');
+                return;
+            }
+
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type === 'user' ? 'user-message' : 'agent-message'}`;
+            
+            const timeString = timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageElement.innerHTML = `
+                <div class="message-avatar">
+                    <span class="avatar-icon">${type === 'user' ? '👤' : '🤖'}</span>
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble">${escapeHtml(content)}</div>
+                    <div class="message-time">${timeString}</div>
+                </div>
+            `;
+
+            messagesContainer.appendChild(messageElement);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+
+            // Remove existing typing indicator
+            hideTypingIndicator();
+
+            const typingElement = document.createElement('div');
+            typingElement.id = 'typing-indicator';
+            typingElement.className = 'message agent-message typing-indicator';
+            typingElement.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        ${config.agentName || 'Agent'} is typing...
+                    </div>
+                </div>
+            `;
+
+            messagesContainer.appendChild(typingElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load and display conversation history
+        async function displayConversationHistory(conversations) {
+            if (!conversations || !conversations.data || !Array.isArray(conversations.data)) {
+                console.log('No conversation history to display');
+                return;
+            }
+
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+
+            // Clear existing messages
+            messagesContainer.innerHTML = '';
+
+            // Find the most recent active conversation
+            const activeConversation = conversations.data.find(conv => !conv.is_ended) || conversations.data[0];
+            
+            if (!activeConversation) {
+                console.log('No active conversation found');
+                return;
+            }
+
+            console.log('Active conversation:', activeConversation);
+            
+            // Store current conversation ID for sending messages
+            currentUser.currentConversationId = activeConversation.id;
+            currentUser.traceId = activeConversation.trace_id;
+
+            try {
+                // Fetch actual messages for this conversation
+                const messagesResponse = await getConversationMessages(activeConversation.id, currentUser.token);
+                
+                if (messagesResponse && messagesResponse.data && Array.isArray(messagesResponse.data)) {
+                    // Add each message from history
+                    messagesResponse.data.forEach(message => {
+                        const messageType = message.sender_type === 'customer' ? 'user' : 'agent';
+                        const timestamp = new Date(message.created_at || message.timestamp);
+                        const content = message.content || message.message || message.text;
+                        addMessageToChat(content, messageType, timestamp);
+                    });
+
+                    console.log(`Displayed ${messagesResponse.data.length} messages from conversation history`);
+                } else {
+                    console.log('No messages found in conversation');
+                }
+            } catch (error) {
+                console.error('Failed to load conversation messages:', error);
+                console.error('Messages API endpoint might not exist or returned error');
+                
+                // Fallback: Show last messages from all conversations for this customer
+                console.log('Using fallback: showing last messages from all conversations');
+                
+                // Sort conversations by last message time (oldest first for chronological order)
+                const sortedConversations = [...conversations.data].sort((a, b) => 
+                    new Date(a.last_message_at) - new Date(b.last_message_at)
+                );
+                
+                // Show last message from each conversation in chronological order
+                sortedConversations.forEach(conv => {
+                    if (conv.last_message) {
+                        const msgType = conv.last_message_info?.last_message_sender === 'customer' ? 'user' : 'agent';
+                        const msgTime = new Date(conv.last_message_at);
+                        addMessageToChat(conv.last_message, msgType, msgTime);
+                        console.log(`Added message: "${conv.last_message}" at ${msgTime.toLocaleString()}`);
+                    }
+                });
+                
+                if (sortedConversations.length === 0) {
+                    addMessageToChat('No conversation history found. Start a new conversation!', 'system', new Date());
+                }
+            }
+        }
+
+        // Helper function to load conversations and show chat interface
+        async function loadConversationsAndShowChat() {
+            if (currentUser && currentUser.token) {
+                try {
+                    const conversations = await getConversations(currentUser.token);
+                    console.log('Conversations loaded:', conversations);
+                    
+                    // Store conversations data
+                    currentUser.conversations = conversations;
+                    
+                    // Display conversations in the chat interface
+                    await displayConversationHistory(conversations);
+                    
+                } catch (error) {
+                    console.error('Failed to load conversations:', error);
+                    // Continue to chat interface even if conversations fail to load
+                }
+            }
+            
+            // Show chat interface
+            showChatInterface();
+        }
+
         // Initialize chat widget
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize configuration first
+            initializeConfig();
+            
             // Set initial timestamp
             document.getElementById('initial-time').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
-            // Initialize chat functionality
-            if (window.ChatWidget) {
-                window.ChatWidget.init();
+            // Initialize chat interface
+            initializeChatInterface();
+
+            // Handle registration form submission
+            const registrationForm = document.getElementById('user-registration-form');
+            if (registrationForm) {
+                registrationForm.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    
+                    const formData = {
+                        name: document.getElementById('user-name').value.trim(),
+                        email: document.getElementById('user-email').value.trim(),
+                        phone: document.getElementById('user-phone').value.trim(),
+                        subject: document.getElementById('user-subject').value.trim()
+                    };
+                    
+                    // Basic validation
+                    if (!formData.name || !formData.email || !formData.phone) {
+                        alert('Please fill in all required fields');
+                        return;
+                    }
+                    
+                    // Email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(formData.email)) {
+                        alert('Please enter a valid email address');
+                        return;
+                    }
+                    
+                    // Store user data
+                    currentUser = formData;
+                    
+                    // Show loading state
+                    const startChatBtn = document.getElementById('start-chat-btn');
+                    const btnText = startChatBtn.querySelector('.btn-text');
+                    const btnLoading = startChatBtn.querySelector('.btn-loading');
+                    
+                    btnText.style.display = 'none';
+                    btnLoading.style.display = 'inline-flex';
+                    startChatBtn.disabled = true;
+                    
+                    try {
+                        const response = await initiateChat(formData.name, formData.phone, formData.email);
+                        console.log('Chat initiated successfully:', response);
+                        
+                        // Store the response data including any tokens
+                        if (response.data) {
+                            currentUser = { ...currentUser, ...response.data };
+                        }
+                        
+                        btnText.style.display = 'inline';
+                        btnLoading.style.display = 'none';
+                        startChatBtn.disabled = false;
+                        
+                        if (config.requireOTPVerification) {
+                            // Show OTP verification
+                            showOTPVerification();
+                        } else {
+                            // Go directly to chat
+                            showChatInterface();
+                        }
+                    } catch (error) {
+                        console.error('Failed to initiate chat:', error);
+                        alert('Failed to start chat. Please try again.');
+                        btnText.style.display = 'inline';
+                        btnLoading.style.display = 'none';
+                        startChatBtn.disabled = false;
+                    }
+                });
+            }
+
+            // Handle OTP verification form submission
+            const otpVerificationForm = document.getElementById('otp-verification-form');
+            if (otpVerificationForm) {
+                otpVerificationForm.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+
+                    const otp = Array.from(document.querySelectorAll('.otp-digit')).map(input => input.value).join('');
+                    
+                    if (otp.length !== 6) {
+                        alert('Please enter the complete 6-digit code');
+                        return;
+                    }
+
+                    const verifyOtpBtn = document.getElementById('verify-otp-btn');
+                    const btnText = verifyOtpBtn.querySelector('.btn-text');
+                    const btnLoading = verifyOtpBtn.querySelector('.btn-loading');
+
+                    btnText.style.display = 'none';
+                    btnLoading.style.display = 'inline-flex';
+                    verifyOtpBtn.disabled = true;
+
+                    try {
+                        const response = await verifyOtp(currentUser.email, otp);
+                        console.log('OTP verified successfully:', response);
+                        
+                        // Store the response data including any tokens
+                        if (response.data) {
+                            currentUser = { ...currentUser, ...response.data };
+                            
+                            // Save session to localStorage after successful verification
+                            saveUserSession(currentUser);
+                        }
+
+                        // Fetch conversations if we have a token
+                        if (currentUser.token) {
+                            try {
+                                const conversations = await getConversations(currentUser.token);
+                                console.log('Conversations loaded:', conversations);
+                                
+                                // Store conversations data
+                                currentUser.conversations = conversations;
+                                
+                                // Display conversations in the chat interface
+                                await displayConversationHistory(conversations);
+                                
+                            } catch (error) {
+                                console.error('Failed to load conversations:', error);
+                                // Continue to chat interface even if conversations fail to load
+                            }
+                        }
+
+                        // Hide OTP verification and show chat interface
+                        showChatInterface();
+                        
+                    } catch (error) {
+                        console.error('Failed to verify OTP:', error);
+                        alert('Invalid verification code. Please try again.');
+                        
+                        // Clear OTP inputs
+                        document.querySelectorAll('.otp-digit').forEach(input => {
+                            input.value = '';
+                            input.classList.remove('filled');
+                        });
+                        document.getElementById('otp-digit-1').focus();
+                    } finally {
+                        btnText.style.display = 'inline';
+                        btnLoading.style.display = 'none';
+                        verifyOtpBtn.disabled = false;
+                    }
+                });
+            }
+
+            // Handle resend OTP
+            const resendOtpBtn = document.getElementById('resend-otp-btn');
+            if (resendOtpBtn) {
+                resendOtpBtn.addEventListener('click', async function() {
+                    resendOtpBtn.disabled = true;
+                    try {
+                        await resendOtp(currentUser.email);
+                        alert('Verification code sent successfully!');
+                        
+                        // Clear OTP inputs and restart timer
+                        document.querySelectorAll('.otp-digit').forEach(input => {
+                            input.value = '';
+                            input.classList.remove('filled');
+                        });
+                        document.getElementById('otp-digit-1').focus();
+                        
+                    } catch (error) {
+                        console.error('Failed to resend OTP:', error);
+                        alert('Failed to resend verification code. Please try again.');
+                    } finally {
+                        resendOtpBtn.disabled = false;
+                    }
+                });
+            }
+
+            // Handle message form submission
+            const messageForm = document.getElementById('message-form');
+            if (messageForm) {
+                messageForm.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    
+                    const messageInput = document.getElementById('message-input');
+                    const message = messageInput.value.trim();
+                    
+                    if (!message) {
+                        return;
+                    }
+                    
+                    if (!isUserAuthenticated()) {
+                        alert('Authentication required. Please restart the chat.');
+                        clearUserSession();
+                        showRegistrationForm();
+                        return;
+                    }
+                    
+                    // Add user message to chat immediately
+                    addMessageToChat(message, 'user', new Date());
+                    
+                    // Clear input
+                    messageInput.value = '';
+                    
+                    // Show typing indicator
+                    showTypingIndicator();
+                    
+                    try {
+                        const response = await sendMessage(message, currentUser.token);
+                        console.log('Message sent successfully:', response);
+                        
+                        // Hide typing indicator
+                        hideTypingIndicator();
+                        
+                        // Note: The response might come via webhook or you might need to poll for new messages
+                        // For now, we'll just log the success
+                        
+                    } catch (error) {
+                        console.error('Failed to send message:', error);
+                        
+                        // Hide typing indicator
+                        hideTypingIndicator();
+                        
+                        // Show error message
+                        addMessageToChat('Sorry, there was an error sending your message. Please try again.', 'system', new Date());
+                    }
+                });
+            }
+
+            // Handle Enter key in message input
+            const messageInput = document.getElementById('message-input');
+            if (messageInput) {
+                messageInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        const form = document.getElementById('message-form');
+                        if (form) {
+                            form.dispatchEvent(new Event('submit'));
+                        }
+                    }
+                });
             }
         });
     </script>

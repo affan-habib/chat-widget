@@ -20,7 +20,8 @@
         iframeWidth: 400,
         iframeHeight: 600,
         autoOpen: false,
-        baseUrl: '', // Will be auto-detected
+        baseUrl: '', // Will be auto-detected - for API calls
+        widgetBaseUrl: '', // For widget files (index.html, etc.)
         zIndex: 9999
     };
 
@@ -73,20 +74,30 @@
      * Auto-detect base URL from script src
      */
     function detectBaseUrl() {
-        if (widgetConfig.baseUrl) return;
-        
-        const scripts = document.getElementsByTagName('script');
-        for (let script of scripts) {
-            if (script.src && script.src.includes('widget.js')) {
-                widgetConfig.baseUrl = script.src.replace('/widget.js', '');
-                break;
+        // Detect widget base URL from script src
+        if (!widgetConfig.widgetBaseUrl) {
+            const scripts = document.getElementsByTagName('script');
+            for (let script of scripts) {
+                if (script.src && script.src.includes('widget.js')) {
+                    widgetConfig.widgetBaseUrl = script.src.replace('/widget.js', '');
+                    break;
+                }
+            }
+            
+            // Fallback to current domain
+            if (!widgetConfig.widgetBaseUrl) {
+                widgetConfig.widgetBaseUrl = window.location.origin;
             }
         }
         
-        // Fallback to current domain
+        // Set API base URL if not explicitly configured
         if (!widgetConfig.baseUrl) {
-            widgetConfig.baseUrl = window.location.origin;
+            // If baseUrl is not set, use the same as widgetBaseUrl
+            widgetConfig.baseUrl = widgetConfig.widgetBaseUrl;
         }
+        
+        console.log('Detected widgetBaseUrl:', widgetConfig.widgetBaseUrl);
+        console.log('Detected baseUrl (API):', widgetConfig.baseUrl);
     }
 
     /**
@@ -210,8 +221,11 @@
         if (widgetConfig.defaultOTP !== undefined) {
             params.set('defaultOTP', widgetConfig.defaultOTP);
         }
+        if (widgetConfig.baseUrl !== undefined) {
+            params.set('baseUrl', widgetConfig.baseUrl);
+        }
         
-        return `${widgetConfig.baseUrl}/index.html?${params.toString()}`;
+        return `${widgetConfig.widgetBaseUrl}/index.html?${params.toString()}`;
     }
 
     /**
@@ -461,6 +475,51 @@
     }
 
     /**
+     * Initiate chat with customer details
+     */
+    async function initiateChat(name, phone, email) {
+        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/initiate-chat`;
+        const payload = {
+            name: name,
+            phone: phone,
+            email: email
+        };
+
+        console.log('Initiating chat with payload:', payload);
+        console.log('Using endpoint:', endpoint);
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('Chat initiation successful:', data);
+            console.log('Request:', JSON.stringify(payload));
+            console.log('Response:', JSON.stringify(data));
+            
+            return data;
+        } catch (error) {
+            console.error('Error initiating chat:', error);
+            console.error('Request details:', { endpoint, payload });
+            throw error; // Re-throw to allow calling code to handle
+        }
+    }
+
+    /**
      * Public API
      */
     window.OmnitrixChat = {
@@ -496,8 +555,105 @@
                     message: message
                 }, '*');
             }
+        },
+        initiateChat: initiateChat,
+        verifyOtp: verifyOtp,
+        resendOtp: resendOtp,
+        getCurrentUser: function() {
+            // Try to get user from iframe first, fallback to local storage or default
+            if (widgetIframe && isOpen) {
+                try {
+                    return widgetIframe.contentWindow.ChatWidget?.getCurrentUser() || null;
+                } catch (e) {
+                    console.warn('Could not access iframe user data:', e);
+                }
+            }
+            return null;
         }
     };
+
+    /**
+     * Resend OTP with customer details
+     */
+    async function resendOtp(email) {
+        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/resend-otp`;
+        const payload = {
+            email: email
+        };
+
+        console.log('Resending OTP with payload:', payload);
+        console.log('Using endpoint:', endpoint);
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('OTP resend successful:', data);
+            console.log('Request:', JSON.stringify(payload));
+            console.log('Response:', JSON.stringify(data));
+            return data;
+        } catch (error) {
+            console.error('Error resending OTP:', error);
+            console.error('Request details:', { endpoint, payload });
+            throw error;
+        }
+    }
+
+    /**
+     * Verify OTP with customer details
+     */
+    async function verifyOtp(email, otp) {
+        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/verify-otp`;
+        const payload = {
+            email: email,
+            otp: otp
+        };
+
+        console.log('Verifying OTP with payload:', payload);
+        console.log('Using endpoint:', endpoint);
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('OTP verification successful:', data);
+            console.log('Request:', JSON.stringify(payload));
+            console.log('Response:', JSON.stringify(data));
+            return data;
+        } catch (error) {
+            console.error('Error verifying OTP:', error);
+            console.error('Request details:', { endpoint, payload });
+            throw error;
+        }
+    }
 
     /**
      * Auto-initialize when DOM is ready
