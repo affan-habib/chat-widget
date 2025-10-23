@@ -275,7 +275,7 @@
 
         // API Functions
         async function initiateChat(name, phone, email) {
-            const endpoint = `${apiBaseUrl}/api/v1/customer/initiate-chat`;
+            const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/initiate-chat';
             const payload = { name, phone, email };
 
             console.log('Initiating chat with payload:', payload);
@@ -310,7 +310,7 @@
         }
 
         async function verifyOtp(email, otp) {
-            const endpoint = `${apiBaseUrl}/api/v1/customer/verify-otp`;
+            const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/verify-otp';
             const payload = { email, otp };
 
             console.log('Verifying OTP with payload:', payload);
@@ -344,7 +344,7 @@
         }
 
         async function getConversations(token) {
-            const endpoint = `${apiBaseUrl}/api/v1/customer/website/conversations`;
+            const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/website/conversations';
 
             console.log('Fetching conversations with token:', token);
             console.log('Using endpoint:', endpoint);
@@ -380,7 +380,7 @@
 
 
         async function sendMessage(message, token) {
-            const endpoint = `${apiBaseUrl}/api/v1/webhook/website`;
+            const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/webhook/website';
             const payload = { content: message };
 
             console.log('Sending message with payload:', payload);
@@ -419,7 +419,7 @@
         }
 
         async function resendOtp(email) {
-            const endpoint = `${apiBaseUrl}/api/v1/customer/resend-otp`;
+            const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/resend-otp';
             const payload = { email };
 
             console.log('Resending OTP with payload:', payload);

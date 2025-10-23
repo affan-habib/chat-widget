@@ -478,7 +478,7 @@
      * Initiate chat with customer details
      */
     async function initiateChat(name, phone, email) {
-        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/initiate-chat`;
+        const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/initiate-chat';
         const payload = {
             name: name,
             phone: phone,
@@ -576,7 +576,7 @@
      * Resend OTP with customer details
      */
     async function resendOtp(email) {
-        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/resend-otp`;
+        const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/resend-otp';
         const payload = {
             email: email
         };
@@ -617,7 +617,7 @@
      * Verify OTP with customer details
      */
     async function verifyOtp(email, otp) {
-        const endpoint = `${widgetConfig.baseUrl}/api/v1/customer/verify-otp`;
+        const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/verify-otp';
         const payload = {
             email: email,
             otp: otp
