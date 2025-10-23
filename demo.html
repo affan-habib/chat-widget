@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Omnitrix Chat Widget - Modern Chat Solution</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     <meta name="description" content="Revolutionary chat widget with stunning design, zero dependencies, and instant setup. Transform your website's customer engagement today.">
     
     <!-- Google Fonts -->
@@ -293,23 +294,18 @@
         // Initialize the chat widget with orange theme
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof OmnitrixChat !== 'undefined') {
-                OmnitrixChat.init({
-                    theme: 'orange',
+                // Update widget configuration
+                OmnitrixChat.updateConfig({
+                    themeColor: '#ff6b35',
+                    agentName: 'Maya',
+                    tenantId: 'orange-demo',
                     position: 'bottom-right',
-                    primaryColor: '#ff6b35',
-                    agents: [
-                        {
-                            name: 'Maya',
-                            avatar: '🧡',
-                            role: 'Orange Support Specialist',
-                            status: 'online'
-                        }
-                    ],
-                    messages: {
-                        welcome: 'Welcome to the beautiful orange experience! 🧡 How can I help you today?',
-                        placeholder: 'Type your message here...'
-                    }
+                    baseUrl: 'https://omnitrix.servicesmanagement.us'
                 });
+                
+                console.log('Chat widget configured for orange theme');
+            } else {
+                console.error('OmnitrixChat not loaded');
             }
         });
 
