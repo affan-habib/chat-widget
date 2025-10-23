@@ -488,7 +488,8 @@
                     apiBaseUrl = apiBaseUrl.slice(0, -1);
                 }
             } else {
-                apiBaseUrl = window.location.origin;
+                // Default to production API URL
+                apiBaseUrl = 'https://omnitrix.servicesmanagement.us';
             }
             console.log('API Base URL:', apiBaseUrl);
             
