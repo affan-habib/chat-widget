@@ -13,9 +13,9 @@
     --secondary-dark: #e6850e;
     --secondary-gradient: linear-gradient(135deg, #ff9500 0%, #ff7518 100%);
     
-    /* Hero Background - Orange Spectrum */
-    --hero-gradient: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ff9500 100%);
-    --hero-overlay: linear-gradient(135deg, rgba(255, 107, 53, 0.9) 0%, rgba(255, 149, 0, 0.8) 100%);
+    /* Hero Background - Light Orange Spectrum */
+    --hero-gradient: linear-gradient(135deg, #ffb347 0%, #ffcc80 50%, #ffe0b3 100%);
+    --hero-overlay: linear-gradient(135deg, rgba(255, 179, 71, 0.8) 0%, rgba(255, 204, 128, 0.7) 100%);
     
     /* Accent Orange Tones */
     --accent-coral: #ff7f50;
