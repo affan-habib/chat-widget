@@ -378,40 +378,6 @@
             }
         }
 
-        async function getConversationMessages(conversationId, token) {
-            const endpoint = `${apiBaseUrl}/api/v1/customer/website/conversations/${conversationId}/messages`;
-
-            console.log('Fetching messages for conversation:', conversationId);
-            console.log('Using endpoint:', endpoint);
-
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API Error Response:', errorText);
-                    throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-                }
-
-                const data = await response.json();
-                console.log('Messages fetched successfully:', data);
-                console.log('Response:', JSON.stringify(data));
-                
-                return data;
-            } catch (error) {
-                console.error('Error fetching conversation messages:', error);
-                console.error('Request details:', { endpoint, conversationId, token: `Bearer ${token}` });
-                throw error;
-            }
-        }
 
         async function sendMessage(message, token) {
             const endpoint = `${apiBaseUrl}/api/v1/webhook/website`;
@@ -788,6 +754,35 @@
             }
         }
 
+        function showSendingIndicator() {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+
+            // Remove existing sending indicator
+            hideSendingIndicator();
+
+            const sendingElement = document.createElement('div');
+            sendingElement.id = 'sending-indicator';
+            sendingElement.className = 'message user-message sending-indicator';
+            sendingElement.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text" style="opacity: 0.7; font-style: italic;">
+                        <span style="font-size: 12px;">Sending...</span>
+                    </div>
+                </div>
+            `;
+
+            messagesContainer.appendChild(sendingElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideSendingIndicator() {
+            const sendingIndicator = document.getElementById('sending-indicator');
+            if (sendingIndicator) {
+                sendingIndicator.remove();
+            }
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -822,19 +817,17 @@
             currentUser.traceId = activeConversation.trace_id;
 
             try {
-                // Fetch actual messages for this conversation
-                const messagesResponse = await getConversationMessages(activeConversation.id, currentUser.token);
-                
-                if (messagesResponse && messagesResponse.data && Array.isArray(messagesResponse.data)) {
+                // Use messages from the conversation data (already fetched)
+                if (activeConversation.messages && Array.isArray(activeConversation.messages)) {
                     // Add each message from history
-                    messagesResponse.data.forEach(message => {
-                        const messageType = message.sender_type === 'customer' ? 'user' : 'agent';
+                    activeConversation.messages.forEach(message => {
+                        const messageType = message.direction === 'incoming' ? 'user' : 'agent';
                         const timestamp = new Date(message.created_at || message.timestamp);
                         const content = message.content || message.message || message.text;
                         addMessageToChat(content, messageType, timestamp);
                     });
 
-                    console.log(`Displayed ${messagesResponse.data.length} messages from conversation history`);
+                    console.log(`Displayed ${activeConversation.messages.length} messages from conversation history`);
                 } else {
                     console.log('No messages found in conversation');
                 }
@@ -1085,21 +1078,21 @@
                         return;
                     }
                     
-                    // Add user message to chat immediately
-                    addMessageToChat(message, 'user', new Date());
-                    
                     // Clear input
                     messageInput.value = '';
                     
-                    // Show typing indicator
-                    showTypingIndicator();
+                    // Show sending indicator
+                    showSendingIndicator();
                     
                     try {
                         const response = await sendMessage(message, currentUser.token);
                         console.log('Message sent successfully:', response);
                         
-                        // Hide typing indicator
-                        hideTypingIndicator();
+                        // Hide sending indicator
+                        hideSendingIndicator();
+                        
+                        // Add user message to chat after successful send
+                        addMessageToChat(message, 'user', new Date());
                         
                         // Note: The response might come via webhook or you might need to poll for new messages
                         // For now, we'll just log the success
@@ -1107,8 +1100,8 @@
                     } catch (error) {
                         console.error('Failed to send message:', error);
                         
-                        // Hide typing indicator
-                        hideTypingIndicator();
+                        // Hide sending indicator
+                        hideSendingIndicator();
                         
                         // Show error message
                         addMessageToChat('Sorry, there was an error sending your message. Please try again.', 'system', new Date());
