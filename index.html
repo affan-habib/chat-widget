@@ -655,20 +655,25 @@
                 console.log('Closing iframe, sending message to parent');
                 window.parent.postMessage({ action: 'close' }, '*');
             } else {
-                // Standalone - hide the chat container or redirect
+                // Standalone - hide the chat container
                 console.log('Closing in standalone mode');
                 const chatContainer = document.getElementById('chat-container');
                 if (chatContainer) {
                     chatContainer.style.display = 'none';
                     console.log('Chat container hidden');
                     
-                    // For demo page, also show a message or redirect
-                    setTimeout(() => {
-                        if (confirm('Chat closed. Would you like to reopen it?')) {
-                            chatContainer.style.display = 'flex';
-                            showRegistrationForm();
-                        }
-                    }, 500);
+                    // For demo page, create a reopen button instead of immediate popup
+                    const reopenBtn = document.createElement('div');
+                    reopenBtn.id = 'reopen-chat-btn';
+                    reopenBtn.innerHTML = `
+                        <button onclick="document.getElementById('chat-container').style.display='flex'; document.getElementById('reopen-chat-btn').remove();" 
+                                style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; border: none; 
+                                       padding: 12px 20px; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                                       font-size: 14px; z-index: 10000;">
+                            💬 Reopen Chat
+                        </button>
+                    `;
+                    document.body.appendChild(reopenBtn);
                 } else {
                     console.error('Chat container not found');
                 }
