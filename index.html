@@ -645,12 +645,15 @@
 
         function handleClose() {
             console.log('Close button clicked');
+            console.log('Window parent check:', window.parent !== window);
+            console.log('Window location:', window.location.href);
+            console.log('Parent location:', window.parent.location !== window.location);
             
             if (window.ReactNativeWebView) {
                 // In React Native WebView - send message to the app
                 console.log('Closing in React Native WebView');
                 window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'close' }));
-            } else if (window.parent !== window) {
+            } else if (window.parent && window.parent !== window) {
                 // In iframe - send message to parent
                 console.log('Closing iframe, sending message to parent');
                 window.parent.postMessage({ action: 'close' }, '*');
