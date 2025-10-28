@@ -918,27 +918,57 @@
                     const wasScrolledToBottom = messagesContainer ? 
                         messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50 : true;
                     
-                    // Check if there are new messages by comparing message count
-                    const currentMessageCount = currentUser.conversations?.data?.messages?.length || 
-                                              (Array.isArray(currentUser.conversations?.data) ? 
-                                               currentUser.conversations.data[0]?.messages?.length : 0) || 0;
+                    // Get current and new conversation data
+                    const currentConversation = Array.isArray(currentUser.conversations?.data) ? 
+                                              currentUser.conversations.data[0] : 
+                                              currentUser.conversations?.data;
                     
-                    const newMessageCount = conversations.data?.messages?.length || 
-                                          (Array.isArray(conversations.data) ? 
-                                           conversations.data[0]?.messages?.length : 0) || 0;
+                    const newConversation = Array.isArray(conversations.data) ? 
+                                          conversations.data[0] : 
+                                          conversations.data;
                     
-                    if (newMessageCount > currentMessageCount) {
-                        console.log(`New messages detected: ${currentMessageCount} -> ${newMessageCount}`);
+                    const currentMessages = currentConversation?.messages || [];
+                    const newMessages = newConversation?.messages || [];
+                    
+                    if (newMessages.length > currentMessages.length) {
+                        console.log(`New messages detected: ${currentMessages.length} -> ${newMessages.length}`);
                         
-                        // Store updated conversations data
-                        currentUser.conversations = conversations;
+                        // Find only the new messages that weren't there before
+                        const existingMessageIds = new Set(currentMessages.map(msg => msg.id));
+                        const newMessagesOnly = newMessages.filter(msg => !existingMessageIds.has(msg.id));
                         
-                        // Refresh the message display
-                        await displayConversationHistory(conversations);
-                        
-                        // Restore scroll position (scroll to bottom if user was at bottom)
-                        if (messagesContainer && wasScrolledToBottom) {
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        if (newMessagesOnly.length > 0) {
+                            console.log(`Adding ${newMessagesOnly.length} new messages`);
+                            
+                            // Sort new messages by creation time
+                            const sortedNewMessages = [...newMessagesOnly].sort((a, b) => 
+                                new Date(a.created_at || a.timestamp) - new Date(b.created_at || b.timestamp)
+                            );
+                            
+                            // Add only the new messages to the chat
+                            sortedNewMessages.forEach((message, index) => {
+                                const messageType = message.direction === 'incoming' ? 'user' : 'agent';
+                                const timestamp = new Date(message.created_at || message.timestamp);
+                                const content = message.content || message.message || message.text;
+                                
+                                console.log(`Adding new message ${index + 1}:`, {
+                                    id: message.id,
+                                    content: content,
+                                    type: messageType,
+                                    timestamp: timestamp.toLocaleString(),
+                                    direction: message.direction
+                                });
+                                
+                                addMessageToChat(content, messageType, timestamp);
+                            });
+                            
+                            // Store updated conversations data
+                            currentUser.conversations = conversations;
+                            
+                            // Restore scroll position (scroll to bottom if user was at bottom)
+                            if (messagesContainer && wasScrolledToBottom) {
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
                         }
                     } else {
                         console.log('No new messages detected');
