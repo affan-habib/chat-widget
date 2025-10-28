@@ -200,6 +200,7 @@
 
         let currentUser = null;
         let apiBaseUrl = '';
+        let conversationRefreshInterval = null;
 
         // Token management functions
         function saveUserSession(userData) {
@@ -649,6 +650,9 @@
             console.log('Window location:', window.location.href);
             console.log('Parent location:', window.parent.location !== window.location);
             
+            // Stop auto-refresh when closing
+            stopConversationAutoRefresh();
+            
             if (window.ReactNativeWebView) {
                 // In React Native WebView - send message to the app
                 console.log('Closing in React Native WebView');
@@ -669,7 +673,7 @@
                     const reopenBtn = document.createElement('div');
                     reopenBtn.id = 'reopen-chat-btn';
                     reopenBtn.innerHTML = `
-                        <button onclick="document.getElementById('chat-container').style.display='flex'; document.getElementById('reopen-chat-btn').remove();" 
+                        <button onclick="document.getElementById('chat-container').style.display='flex'; document.getElementById('reopen-chat-btn').remove(); startConversationAutoRefresh();" 
                                 style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; border: none; 
                                        padding: 12px 20px; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                                        font-size: 14px; z-index: 10000;">
@@ -684,6 +688,9 @@
         }
 
         function logout() {
+            // Stop auto-refresh when logging out
+            stopConversationAutoRefresh();
+            
             clearUserSession();
             currentUser = null;
             showRegistrationForm();
@@ -797,7 +804,7 @@
 
         // Load and display conversation history
         async function displayConversationHistory(conversations) {
-            if (!conversations || !conversations.data || !Array.isArray(conversations.data)) {
+            if (!conversations || !conversations.data) {
                 console.log('No conversation history to display');
                 return;
             }
@@ -808,8 +815,18 @@
             // Clear existing messages
             messagesContainer.innerHTML = '';
 
-            // Find the most recent active conversation
-            const activeConversation = conversations.data.find(conv => !conv.is_ended) || conversations.data[0];
+            let activeConversation;
+            
+            // Handle both single conversation object and array of conversations
+            if (Array.isArray(conversations.data)) {
+                console.log('API returned array of conversations');
+                // Array format: find the most recent active conversation
+                activeConversation = conversations.data.find(conv => !conv.is_ended) || conversations.data[0];
+            } else {
+                console.log('API returned single conversation object');
+                // Single conversation object format (your API structure)
+                activeConversation = conversations.data;
+            }
             
             if (!activeConversation) {
                 console.log('No active conversation found');
@@ -817,51 +834,43 @@
             }
 
             console.log('Active conversation:', activeConversation);
+            console.log('Messages in conversation:', activeConversation.messages);
             
             // Store current conversation ID for sending messages
             currentUser.currentConversationId = activeConversation.id;
             currentUser.traceId = activeConversation.trace_id;
 
-            try {
-                // Use messages from the conversation data (already fetched)
-                if (activeConversation.messages && Array.isArray(activeConversation.messages)) {
-                    // Add each message from history
-                    activeConversation.messages.forEach(message => {
-                        const messageType = message.direction === 'incoming' ? 'user' : 'agent';
-                        const timestamp = new Date(message.created_at || message.timestamp);
-                        const content = message.content || message.message || message.text;
-                        addMessageToChat(content, messageType, timestamp);
-                    });
-
-                    console.log(`Displayed ${activeConversation.messages.length} messages from conversation history`);
-                } else {
-                    console.log('No messages found in conversation');
-                }
-            } catch (error) {
-                console.error('Failed to load conversation messages:', error);
-                console.error('Messages API endpoint might not exist or returned error');
+            // Check if messages exist and display all of them
+            if (activeConversation.messages && Array.isArray(activeConversation.messages) && activeConversation.messages.length > 0) {
+                console.log(`Found ${activeConversation.messages.length} messages in conversation`);
                 
-                // Fallback: Show last messages from all conversations for this customer
-                console.log('Using fallback: showing last messages from all conversations');
-                
-                // Sort conversations by last message time (oldest first for chronological order)
-                const sortedConversations = [...conversations.data].sort((a, b) => 
-                    new Date(a.last_message_at) - new Date(b.last_message_at)
+                // Sort messages by creation time to ensure proper order
+                const sortedMessages = [...activeConversation.messages].sort((a, b) => 
+                    new Date(a.created_at || a.timestamp) - new Date(b.created_at || b.timestamp)
                 );
                 
-                // Show last message from each conversation in chronological order
-                sortedConversations.forEach(conv => {
-                    if (conv.last_message) {
-                        const msgType = conv.last_message_info?.last_message_sender === 'customer' ? 'user' : 'agent';
-                        const msgTime = new Date(conv.last_message_at);
-                        addMessageToChat(conv.last_message, msgType, msgTime);
-                        console.log(`Added message: "${conv.last_message}" at ${msgTime.toLocaleString()}`);
-                    }
+                // Add each message from history
+                sortedMessages.forEach((message, index) => {
+                    const messageType = message.direction === 'incoming' ? 'user' : 'agent';
+                    const timestamp = new Date(message.created_at || message.timestamp);
+                    const content = message.content || message.message || message.text;
+                    
+                    console.log(`Displaying message ${index + 1}:`, {
+                        id: message.id,
+                        content: content,
+                        type: messageType,
+                        timestamp: timestamp.toLocaleString(),
+                        direction: message.direction
+                    });
+                    
+                    addMessageToChat(content, messageType, timestamp);
                 });
-                
-                if (sortedConversations.length === 0) {
-                    addMessageToChat('No conversation history found. Start a new conversation!', 'system', new Date());
-                }
+
+                console.log(`Successfully displayed ${sortedMessages.length} messages from conversation history`);
+            } else {
+                console.log('No messages array found in conversation or messages array is empty');
+                console.log('Chat will start with empty message history - no dummy messages displayed');
+                // Don't show any dummy messages - leave the chat empty for new conversations
             }
         }
 
@@ -886,6 +895,80 @@
             
             // Show chat interface
             showChatInterface();
+            
+            // Start auto-refresh for conversations
+            startConversationAutoRefresh();
+        }
+
+        // Function to refresh conversations automatically
+        async function refreshConversations() {
+            if (!currentUser || !currentUser.token) {
+                console.log('No user token available for conversation refresh');
+                return;
+            }
+
+            try {
+                console.log('Auto-refreshing conversations...');
+                const conversations = await getConversations(currentUser.token);
+                
+                // Only update if we got new data
+                if (conversations && conversations.data) {
+                    // Store the current scroll position
+                    const messagesContainer = document.getElementById('chat-messages');
+                    const wasScrolledToBottom = messagesContainer ? 
+                        messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50 : true;
+                    
+                    // Check if there are new messages by comparing message count
+                    const currentMessageCount = currentUser.conversations?.data?.messages?.length || 
+                                              (Array.isArray(currentUser.conversations?.data) ? 
+                                               currentUser.conversations.data[0]?.messages?.length : 0) || 0;
+                    
+                    const newMessageCount = conversations.data?.messages?.length || 
+                                          (Array.isArray(conversations.data) ? 
+                                           conversations.data[0]?.messages?.length : 0) || 0;
+                    
+                    if (newMessageCount > currentMessageCount) {
+                        console.log(`New messages detected: ${currentMessageCount} -> ${newMessageCount}`);
+                        
+                        // Store updated conversations data
+                        currentUser.conversations = conversations;
+                        
+                        // Refresh the message display
+                        await displayConversationHistory(conversations);
+                        
+                        // Restore scroll position (scroll to bottom if user was at bottom)
+                        if (messagesContainer && wasScrolledToBottom) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    } else {
+                        console.log('No new messages detected');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to refresh conversations:', error);
+                // Don't stop the interval on error, just log it
+            }
+        }
+
+        // Function to start auto-refresh interval
+        function startConversationAutoRefresh() {
+            // Clear any existing interval
+            if (conversationRefreshInterval) {
+                clearInterval(conversationRefreshInterval);
+            }
+            
+            // Start new interval (10 seconds)
+            conversationRefreshInterval = setInterval(refreshConversations, 10000);
+            console.log('Started conversation auto-refresh every 10 seconds');
+        }
+
+        // Function to stop auto-refresh interval
+        function stopConversationAutoRefresh() {
+            if (conversationRefreshInterval) {
+                clearInterval(conversationRefreshInterval);
+                conversationRefreshInterval = null;
+                console.log('Stopped conversation auto-refresh');
+            }
         }
 
         // Initialize chat widget
