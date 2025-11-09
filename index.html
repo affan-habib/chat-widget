@@ -153,9 +153,12 @@
 
         <!-- Chat Input -->
         <div class="chat-input-container">
+            <!-- Attachments Preview -->
+            <div id="attachments-preview" class="attachments-preview" style="display: none;"></div>
+            
             <form id="message-form" class="chat-input-wrapper">
-                <input type="file" id="file-input" accept="image/*" style="display: none;">
-                <button type="button" id="attach-btn" class="attach-btn" title="Attach Image">
+                <input type="file" id="file-input" accept="image/*,application/pdf,.doc,.docx" multiple style="display: none;">
+                <button type="button" id="attach-btn" class="attach-btn" title="Attach File">
                     <span>📎</span>
                 </button>
                 <input 
@@ -164,7 +167,6 @@
                     class="message-input" 
                     placeholder="Type your message..."
                     maxlength="1000"
-                    required
                 >
                 <button type="submit" id="send-btn" class="send-btn" title="Send Message">
                     <span>➤</span>
@@ -201,6 +203,7 @@
         let currentUser = null;
         let apiBaseUrl = '';
         let conversationRefreshInterval = null;
+        let selectedAttachments = []; // Store selected files
 
         // Token management functions
         function saveUserSession(userData) {
@@ -377,22 +380,46 @@
         }
 
 
-        async function sendMessage(message, token) {
+        async function sendMessage(message, token, attachments = []) {
             const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/webhook/website';
-            const payload = { content: message };
+            
+            let body;
+            let headers = {
+                'Authorization': `Bearer ${token}`
+            };
 
-            console.log('Sending message with payload:', payload);
+            // If there are attachments, use FormData
+            if (attachments && attachments.length > 0) {
+                const formData = new FormData();
+                
+                // Add message content
+                if (message && message.trim()) {
+                    formData.append('content', message);
+                }
+                
+                // Add attachments
+                attachments.forEach((file, index) => {
+                    formData.append('attachments[]', file, file.name);
+                });
+                
+                body = formData;
+                // Don't set Content-Type header for FormData - browser will set it with boundary
+                console.log('Sending message with', attachments.length, 'attachment(s)');
+            } else {
+                // No attachments, use JSON
+                headers['Content-Type'] = 'application/json';
+                body = JSON.stringify({ content: message });
+                console.log('Sending message with payload:', { content: message });
+            }
+
             console.log('Using endpoint:', endpoint);
             console.log('Using token:', token);
 
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload),
+                    headers: headers,
+                    body: body,
                 });
 
                 console.log('Response status:', response.status);
@@ -405,13 +432,12 @@
 
                 const data = await response.json();
                 console.log('Message sent successfully:', data);
-                console.log('Request:', JSON.stringify(payload));
                 console.log('Response:', JSON.stringify(data));
                 
                 return data;
             } catch (error) {
                 console.error('Error sending message:', error);
-                console.error('Request details:', { endpoint, payload, token: `Bearer ${token}` });
+                console.error('Request details:', { endpoint, token: `Bearer ${token}` });
                 throw error;
             }
         }
@@ -802,6 +828,92 @@
             return div.innerHTML;
         }
 
+        // Attachment handling functions
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            // Add new files to selectedAttachments
+            files.forEach(file => {
+                // Check file size (max 10MB per file)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert(`File "${file.name}" is too large. Maximum size is 10MB.`);
+                    return;
+                }
+                
+                // Add file with unique ID
+                selectedAttachments.push({
+                    id: Date.now() + Math.random(),
+                    file: file,
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+            });
+
+            // Update preview
+            updateAttachmentsPreview();
+            
+            // Clear file input so same file can be selected again
+            event.target.value = '';
+        }
+
+        function removeAttachment(attachmentId) {
+            selectedAttachments = selectedAttachments.filter(att => att.id !== attachmentId);
+            updateAttachmentsPreview();
+        }
+
+        function updateAttachmentsPreview() {
+            const previewContainer = document.getElementById('attachments-preview');
+            if (!previewContainer) return;
+
+            if (selectedAttachments.length === 0) {
+                previewContainer.style.display = 'none';
+                previewContainer.innerHTML = '';
+                return;
+            }
+
+            previewContainer.style.display = 'flex';
+            previewContainer.innerHTML = '';
+
+            selectedAttachments.forEach(attachment => {
+                const attachmentEl = document.createElement('div');
+                attachmentEl.className = 'attachment-item';
+                
+                const isImage = attachment.type.startsWith('image/');
+                const icon = isImage ? '🖼️' : '📄';
+                
+                attachmentEl.innerHTML = `
+                    <div class="attachment-icon">${icon}</div>
+                    <div class="attachment-info">
+                        <div class="attachment-name" title="${escapeHtml(attachment.name)}">${escapeHtml(attachment.name)}</div>
+                        <div class="attachment-size">${formatFileSize(attachment.size)}</div>
+                    </div>
+                    <button type="button" class="attachment-remove" onclick="removeAttachment(${attachment.id})" title="Remove">
+                        ×
+                    </button>
+                `;
+                
+                previewContainer.appendChild(attachmentEl);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function clearAttachments() {
+            selectedAttachments = [];
+            updateAttachmentsPreview();
+        }
+
+        // Make removeAttachment available globally
+        window.removeAttachment = removeAttachment;
+
         // Load and display conversation history
         async function displayConversationHistory(conversations) {
             if (!conversations || !conversations.data) {
@@ -1176,6 +1288,20 @@
                 });
             }
 
+            // Handle file input change
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+            }
+
+            // Handle attach button click
+            const attachBtn = document.getElementById('attach-btn');
+            if (attachBtn && fileInput) {
+                attachBtn.addEventListener('click', function() {
+                    fileInput.click();
+                });
+            }
+
             // Handle message form submission
             const messageForm = document.getElementById('message-form');
             if (messageForm) {
@@ -1185,7 +1311,8 @@
                     const messageInput = document.getElementById('message-input');
                     const message = messageInput.value.trim();
                     
-                    if (!message) {
+                    // Check if there's either a message or attachments
+                    if (!message && selectedAttachments.length === 0) {
                         return;
                     }
                     
@@ -1196,21 +1323,34 @@
                         return;
                     }
                     
-                    // Clear input
+                    // Get attachments files
+                    const attachmentFiles = selectedAttachments.map(att => att.file);
+                    
+                    // Clear input and attachments
                     messageInput.value = '';
+                    const messageToSend = message;
+                    clearAttachments();
                     
                     // Show sending indicator
                     showSendingIndicator();
                     
                     try {
-                        const response = await sendMessage(message, currentUser.token);
+                        const response = await sendMessage(messageToSend, currentUser.token, attachmentFiles);
                         console.log('Message sent successfully:', response);
                         
                         // Hide sending indicator
                         hideSendingIndicator();
                         
                         // Add user message to chat after successful send
-                        addMessageToChat(message, 'user', new Date());
+                        if (messageToSend) {
+                            addMessageToChat(messageToSend, 'user', new Date());
+                        }
+                        
+                        // Add attachment indicators if files were sent
+                        if (attachmentFiles.length > 0) {
+                            const attachmentText = `📎 Sent ${attachmentFiles.length} attachment${attachmentFiles.length > 1 ? 's' : ''}`;
+                            addMessageToChat(attachmentText, 'user', new Date());
+                        }
                         
                         // Note: The response might come via webhook or you might need to poll for new messages
                         // For now, we'll just log the success
