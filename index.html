@@ -204,6 +204,7 @@
         let apiBaseUrl = '';
         let conversationRefreshInterval = null;
         let selectedAttachments = []; // Store selected files
+        let lastMessageId = null; // To track the last displayed message
 
         // Token management functions
         function saveUserSession(userData) {
@@ -744,17 +745,27 @@
         }
 
         // Chat message functions
-        function addMessageToChat(message) {
+        function addMessageToChat(message, scrollBehavior = 'auto') {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) {
                 console.error('Messages container not found');
                 return;
             }
 
-            const { content, type, timestamp, attachments } = message;
+            const { content, type, timestamp, attachments, id } = message;
+
+            // Prevent adding duplicate messages
+            if (id && document.querySelector(`[data-message-id="${id}"]`)) {
+                return;
+            }
+
+            const wasScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50;
 
             const messageElement = document.createElement('div');
             messageElement.className = `message ${type === 'user' ? 'user-message' : 'agent-message'}`;
+            if (id) {
+                messageElement.dataset.messageId = id;
+            }
             
             const timeString = timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
@@ -792,8 +803,14 @@
 
             messagesContainer.appendChild(messageElement);
             
-            // Scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            if (id) {
+                lastMessageId = id;
+            }
+
+            // Smart scrolling
+            if (scrollBehavior === 'smooth' || (scrollBehavior === 'auto' && wasScrolledToBottom)) {
+                messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+            }
         }
 
         function showTypingIndicator() {
@@ -975,6 +992,7 @@
 
             // Clear existing messages to prevent duplication
             messagesContainer.innerHTML = '';
+            lastMessageId = null;
 
             let activeConversation;
             
@@ -1011,21 +1029,23 @@
                 );
                 
                 // Add each message from history
-                messagesContainer.innerHTML = ''; // Clear the container first
                 sortedMessages.forEach((message, index) => {
                     const messageType = message.direction === 'incoming' ? 'user' : 'agent';
                     const timestamp = new Date(message.created_at || message.timestamp);
                     const content = message.content || message.message || message.text;
                     
                     addMessageToChat({
+                        id: message.id,
                         content: content,
                         type: messageType,
                         timestamp: timestamp,
                         attachments: message.attachments
-                    });
+                    }, 'immediate');
                 });
 
                 console.log(`Successfully displayed ${sortedMessages.length} messages from conversation history`);
+                 // Scroll to bottom after initial load
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             } else {
                 console.log('No messages array found in conversation or messages array is empty');
                 console.log('Chat will start with empty message history - no dummy messages displayed');
@@ -1072,40 +1092,44 @@
                 
                 // Only update if we got new data
                 if (conversations && conversations.data) {
-                    // Store the current scroll position
-                    const messagesContainer = document.getElementById('chat-messages');
-                    const wasScrolledToBottom = messagesContainer ? 
-                        messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50 : true;
-                    
-                    // Get current and new conversation data
-                    const currentConversation = Array.isArray(currentUser.conversations?.data) ? 
-                                              currentUser.conversations.data[0] : 
-                                              currentUser.conversations?.data;
-                    
-                    const newConversation = Array.isArray(conversations.data) ? 
-                                          conversations.data[0] : 
-                                          conversations.data;
-                    
-                    const currentMessages = currentConversation?.messages || [];
-                    const newMessages = newConversation?.messages || [];
-                    
-                    // Compare the last message ID to see if there's a new message
-                    const lastKnownMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
-                    const lastRemoteMessageId = newMessages.length > 0 ? newMessages[newMessages.length - 1].id : null;
+                    let activeConversation;
+            
+                    if (Array.isArray(conversations.data)) {
+                        activeConversation = conversations.data.find(conv => !conv.is_ended) || conversations.data[0];
+                    } else {
+                        activeConversation = conversations.data;
+                    }
 
-                    if (newMessages.length > currentMessages.length || (lastRemoteMessageId && lastRemoteMessageId !== lastKnownMessageId)) {
+                    if (!activeConversation || !activeConversation.messages || activeConversation.messages.length === 0) {
+                        console.log('No new messages or conversation data.');
+                        return;
+                    }
+                    
+                    const sortedMessages = [...activeConversation.messages].sort((a, b) => 
+                        new Date(a.created_at || a.timestamp) - new Date(b.created_at || b.timestamp)
+                    );
+
+                    const latestMessage = sortedMessages[sortedMessages.length - 1];
+
+                    if (latestMessage && latestMessage.id !== lastMessageId) {
                         console.log(`New messages detected. Updating UI.`);
                         
-                        // Re-render the entire conversation history to ensure consistency
-                        await displayConversationHistory(conversations);
-                        
-                        // Store updated conversations data
-                        currentUser.conversations = conversations;
+                        const lastKnownIndex = sortedMessages.findIndex(m => m.id === lastMessageId);
+                        const newMessages = lastKnownIndex === -1 ? sortedMessages : sortedMessages.slice(lastKnownIndex + 1);
 
-                        // Restore scroll position (scroll to bottom if user was at bottom)
-                        if (messagesContainer && wasScrolledToBottom) {
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        }
+                        newMessages.forEach(message => {
+                            const messageType = message.direction === 'incoming' ? 'user' : 'agent';
+                            const timestamp = new Date(message.created_at || message.timestamp);
+                            const content = message.content || message.message || message.text;
+                            
+                            addMessageToChat({
+                                id: message.id,
+                                content: content,
+                                type: messageType,
+                                timestamp: timestamp,
+                                attachments: message.attachments
+                            });
+                        });
                     } else {
                         console.log('No new messages detected.');
                     }
@@ -1123,9 +1147,9 @@
                 clearInterval(conversationRefreshInterval);
             }
             
-            // Start new interval (10 seconds)
-            conversationRefreshInterval = setInterval(refreshConversations, 10000);
-            console.log('Started conversation auto-refresh every 10 seconds');
+            // Start new interval (5 seconds for better responsiveness)
+            conversationRefreshInterval = setInterval(refreshConversations, 5000);
+            console.log('Started conversation auto-refresh every 5 seconds');
         }
 
         // Function to stop auto-refresh interval
@@ -1212,8 +1236,8 @@
                             // Show OTP verification
                             showOTPVerification();
                         } else {
-                            // Go directly to chat
-                            showChatInterface();
+                            // Go directly to chat and start polling
+                            loadConversationsAndShowChat();
                         }
                     } catch (error) {
                         console.error('Failed to initiate chat:', error);
@@ -1357,22 +1381,9 @@
                         return;
                     }
                     
-                    // Get attachments files and create local attachment objects for UI
+                    // Get attachments files to be sent
                     const attachmentFiles = selectedAttachments.map(att => att.file);
-                    const localAttachments = selectedAttachments.map(att => ({
-                        url: URL.createObjectURL(att.file),
-                        type: att.type.split('/')[0], // 'image', 'video', 'audio'
-                        name: att.name
-                    }));
 
-                    // Add user message to chat immediately for better UX
-                    addMessageToChat({
-                        content: message,
-                        type: 'user',
-                        timestamp: new Date(),
-                        attachments: localAttachments
-                    });
-                    
                     // Clear input and attachments
                     messageInput.value = '';
                     clearAttachments();
@@ -1387,8 +1398,8 @@
                         // Hide sending indicator
                         hideSendingIndicator();
                         
-                        // Note: The response might come via webhook or you might need to poll for new messages
-                        // For now, we'll just log the success
+                        // Manually trigger a refresh to get the message from the server
+                        await refreshConversations();
                         
                     } catch (error) {
                         console.error('Failed to send message:', error);
@@ -1414,7 +1425,7 @@
                         event.preventDefault();
                         const form = document.getElementById('message-form');
                         if (form) {
-                            form.dispatchEvent(new Event('submit'));
+                            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                         }
                     }
                 });

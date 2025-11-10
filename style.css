@@ -208,6 +208,8 @@ body {
     line-height: 1.4;
     font-size: 14px;
     position: relative;
+    display: flex; /* Added for flex container */
+    flex-direction: column; /* Added to stack content vertically */
 }
 
 .user-message .message-bubble {
