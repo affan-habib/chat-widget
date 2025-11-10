@@ -157,7 +157,7 @@
             <div id="attachments-preview" class="attachments-preview" style="display: none;"></div>
             
             <form id="message-form" class="chat-input-wrapper">
-                <input type="file" id="file-input" accept="image/*,application/pdf,.doc,.docx" multiple style="display: none;">
+                <input type="file" id="file-input" accept="image/*,video/*,audio/*,application/pdf" multiple style="display: none;">
                 <button type="button" id="attach-btn" class="attach-btn" title="Attach File">
                     <span>📎</span>
                 </button>
@@ -193,7 +193,7 @@
             welcomeMessage: 'Hello! How can I help you today?',
             responseDelay: { min: 1000, max: 2500 },
             maxFileSize: 5 * 1024 * 1024, // 5MB
-            allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+            allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'application/pdf'],
             requireRegistration: true,
             requireOTPVerification: true,
             defaultOTP: '123456',
@@ -848,6 +848,12 @@
 
             // Add new files to selectedAttachments
             files.forEach(file => {
+                // Check file type
+                if (!config.allowedFileTypes.includes(file.type)) {
+                    alert(`File type "${file.type}" is not allowed.`);
+                    return;
+                }
+
                 // Check file size (max 10MB per file)
                 if (file.size > 10 * 1024 * 1024) {
                     alert(`File "${file.name}" is too large. Maximum size is 10MB.`);
@@ -893,8 +899,14 @@
                 const attachmentEl = document.createElement('div');
                 attachmentEl.className = 'attachment-item';
                 
-                const isImage = attachment.type.startsWith('image/');
-                const icon = isImage ? '🖼️' : '📄';
+                let icon = '📄'; // Default icon
+                if (attachment.type.startsWith('image/')) {
+                    icon = '🖼️';
+                } else if (attachment.type.startsWith('video/')) {
+                    icon = '🎬';
+                } else if (attachment.type.startsWith('audio/')) {
+                    icon = '🎵';
+                }
                 
                 attachmentEl.innerHTML = `
                     <div class="attachment-icon">${icon}</div>
