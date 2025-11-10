@@ -698,14 +698,27 @@
                     // For demo page, create a reopen button instead of immediate popup
                     const reopenBtn = document.createElement('div');
                     reopenBtn.id = 'reopen-chat-btn';
-                    reopenBtn.innerHTML = `
-                        <button onclick="document.getElementById('chat-container').style.display='flex'; document.getElementById('reopen-chat-btn').remove(); startConversationAutoRefresh();" 
-                                style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; border: none; 
-                                       padding: 12px 20px; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                                       font-size: 14px; z-index: 10000;">
-                            💬 Reopen Chat
-                        </button>
-                    `;
+                    
+                    const reopenButton = document.createElement('button');
+                    reopenButton.textContent = '💬 Reopen Chat';
+                    reopenButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 14px; z-index: 10000;';
+                    
+                    reopenButton.onclick = function() {
+                        const container = document.getElementById('chat-container');
+                        if (container) {
+                            container.style.display = 'flex';
+                        }
+                        const reopenDiv = document.getElementById('reopen-chat-btn');
+                        if (reopenDiv) {
+                            reopenDiv.remove();
+                        }
+                        // Restart conversation auto-refresh if user is authenticated
+                        if (isUserAuthenticated()) {
+                            startConversationAutoRefresh();
+                        }
+                    };
+                    
+                    reopenBtn.appendChild(reopenButton);
                     document.body.appendChild(reopenBtn);
                 } else {
                     console.error('Chat container not found');
@@ -924,7 +937,7 @@
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
 
-            // Clear existing messages
+            // Clear existing messages to prevent duplication
             messagesContainer.innerHTML = '';
 
             let activeConversation;
@@ -962,6 +975,7 @@
                 );
                 
                 // Add each message from history
+                messagesContainer.innerHTML = ''; // Clear the container first
                 sortedMessages.forEach((message, index) => {
                     const messageType = message.direction === 'incoming' ? 'user' : 'agent';
                     const timestamp = new Date(message.created_at || message.timestamp);
@@ -1042,48 +1056,25 @@
                     const currentMessages = currentConversation?.messages || [];
                     const newMessages = newConversation?.messages || [];
                     
-                    if (newMessages.length > currentMessages.length) {
-                        console.log(`New messages detected: ${currentMessages.length} -> ${newMessages.length}`);
+                    // Compare the last message ID to see if there's a new message
+                    const lastKnownMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
+                    const lastRemoteMessageId = newMessages.length > 0 ? newMessages[newMessages.length - 1].id : null;
+
+                    if (newMessages.length > currentMessages.length || (lastRemoteMessageId && lastRemoteMessageId !== lastKnownMessageId)) {
+                        console.log(`New messages detected. Updating UI.`);
                         
-                        // Find only the new messages that weren't there before
-                        const existingMessageIds = new Set(currentMessages.map(msg => msg.id));
-                        const newMessagesOnly = newMessages.filter(msg => !existingMessageIds.has(msg.id));
+                        // Re-render the entire conversation history to ensure consistency
+                        await displayConversationHistory(conversations);
                         
-                        if (newMessagesOnly.length > 0) {
-                            console.log(`Adding ${newMessagesOnly.length} new messages`);
-                            
-                            // Sort new messages by creation time
-                            const sortedNewMessages = [...newMessagesOnly].sort((a, b) => 
-                                new Date(a.created_at || a.timestamp) - new Date(b.created_at || b.timestamp)
-                            );
-                            
-                            // Add only the new messages to the chat
-                            sortedNewMessages.forEach((message, index) => {
-                                const messageType = message.direction === 'incoming' ? 'user' : 'agent';
-                                const timestamp = new Date(message.created_at || message.timestamp);
-                                const content = message.content || message.message || message.text;
-                                
-                                console.log(`Adding new message ${index + 1}:`, {
-                                    id: message.id,
-                                    content: content,
-                                    type: messageType,
-                                    timestamp: timestamp.toLocaleString(),
-                                    direction: message.direction
-                                });
-                                
-                                addMessageToChat(content, messageType, timestamp);
-                            });
-                            
-                            // Store updated conversations data
-                            currentUser.conversations = conversations;
-                            
-                            // Restore scroll position (scroll to bottom if user was at bottom)
-                            if (messagesContainer && wasScrolledToBottom) {
-                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                            }
+                        // Store updated conversations data
+                        currentUser.conversations = conversations;
+
+                        // Restore scroll position (scroll to bottom if user was at bottom)
+                        if (messagesContainer && wasScrolledToBottom) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         }
                     } else {
-                        console.log('No new messages detected');
+                        console.log('No new messages detected.');
                     }
                 }
             } catch (error) {
@@ -1123,6 +1114,16 @@
             
             // Initialize chat interface
             initializeChatInterface();
+
+            // Listen for messages from the parent window
+            window.addEventListener('message', function(event) {
+                if (event.data.action === 'updateAgentName') {
+                    const agentNameEl = document.querySelector('.agent-name');
+                    if (agentNameEl) {
+                        agentNameEl.textContent = event.data.agentName;
+                    }
+                }
+            });
 
             // Handle registration form submission
             const registrationForm = document.getElementById('user-registration-form');

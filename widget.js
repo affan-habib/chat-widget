@@ -31,6 +31,10 @@
     let widgetIframe = null;
     let widgetContainer = null;
 
+    // Polling state
+    let pollingInterval = null;
+    let conversationPollingInterval = null;
+
     /**
      * Initialize the widget when DOM is ready
      */
@@ -350,6 +354,11 @@
             case 'resize':
                 handleIframeResize(event.data);
                 break;
+            case 'authenticated':
+                if (event.data.user && event.data.user.email) {
+                    startConversationPolling(event.data.user.email);
+                }
+                break;
         }
     }
 
@@ -456,6 +465,9 @@
         
         // Update button
         updateButtonState();
+        
+        // Stop polling
+        stopConversationPolling();
     }
 
     /**
@@ -520,6 +532,119 @@
     }
 
     /**
+     * Fetch conversation and update agent name
+     */
+    async function fetchAndUpdateConversation() {
+        const endpoint = `https://omnitrix.servicesmanagement.us/api/v1/customer/website/conversations`;
+
+        try {
+            const response = await fetch(endpoint);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data && data.name) {
+                widgetConfig.agentName = data.name;
+            } else {
+                widgetConfig.agentName = 'Support Agent';
+            }
+
+            // Send a message to the iframe to update the agent name
+            if (widgetIframe && isOpen) {
+                widgetIframe.contentWindow.postMessage({
+                    action: 'updateAgentName',
+                    agentName: widgetConfig.agentName
+                }, '*');
+            }
+
+        } catch (error) {
+            console.error('Error fetching conversation:', error);
+            widgetConfig.agentName = 'Support Agent';
+        }
+    }
+
+    /**
+     * Get conversation
+     */
+    async function getConversation(email) {
+        // This function seems to be for fetching a specific conversation for a user.
+        // The new requirement is to fetch all conversations and check for an agent name.
+        // For now, we will call the new function.
+        await fetchAndUpdateConversation();
+
+        // The original functionality is preserved below in case it's needed,
+        // but for now, we rely on the periodic fetch.
+        const endpoint = `https://omnitrix.servicesmanagement.us/api/v1/customer/get-conversation?email=${email}`;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error getting conversation:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Start polling for conversation updates
+     */
+    function startConversationPolling(email) {
+        if (pollingInterval) {
+            stopConversationPolling();
+        }
+
+        // Initial fetch
+        fetchAndUpdateConversation();
+
+        // Start periodic fetching
+        conversationPollingInterval = setInterval(fetchAndUpdateConversation, 5000);
+        
+        pollingInterval = setInterval(async () => {
+            try {
+                const conversation = await getConversation(email);
+                // Pass conversation to iframe
+                if (widgetIframe && isOpen) {
+                    widgetIframe.contentWindow.postMessage({
+                        action: 'updateConversation',
+                        conversation: conversation
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('Failed to fetch conversation during polling:', error);
+            }
+        }, 5000); // Poll every 5 seconds
+    }
+
+    /**
+     * Stop polling for conversation updates
+     */
+    function stopConversationPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+        if (conversationPollingInterval) {
+            clearInterval(conversationPollingInterval);
+            conversationPollingInterval = null;
+        }
+    }
+
+    /**
      * Public API
      */
     window.OmnitrixChat = {
@@ -559,6 +684,9 @@
         initiateChat: initiateChat,
         verifyOtp: verifyOtp,
         resendOtp: resendOtp,
+        getConversation: getConversation,
+        startConversationPolling: startConversationPolling,
+        stopConversationPolling: stopConversationPolling,
         getCurrentUser: function() {
             // Try to get user from iframe first, fallback to local storage or default
             if (widgetIframe && isOpen) {
