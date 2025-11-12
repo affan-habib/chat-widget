@@ -177,11 +177,7 @@ body {
     flex-shrink: 0;
 }
 
-.user-message .message-avatar {
-    background: var(--primary-color);
-    color: white;
-}
-
+.user-message .message-avatar,
 .agent-message .message-avatar {
     background: var(--agent-message-bg);
     color: var(--text-primary);
@@ -245,18 +241,39 @@ body {
 }
 
 .message-file {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin-top: 8px;
     padding: 8px 12px;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 6px;
-    color: var(--primary-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
     text-decoration: none;
-    font-weight: 500;
+    border: 1px solid rgba(0, 71, 171, 0.2);
+    background-color: rgba(0, 71, 171, 0.1);
+    color: var(--primary-color);
+}
+
+.message-file::before {
+    content: '📎';
+    font-size: 16px;
 }
 
 .message-file:hover {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 71, 171, 0.18);
+    border-color: rgba(0, 71, 171, 0.3);
+}
+
+.user-message .message-file {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+}
+
+.user-message .message-file:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.45);
 }
 
 
@@ -910,24 +927,4 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background: #1a1a1a;
-        --text-primary: #e1e1e1;
-        --text-secondary: #b1b1b1;
-        --text-light: #888;
-        --agent-message-bg: #2a2a2a;
-        --border-color: #333;
-    }
-
-    body {
-        background: #111;
-    }
-
-    .chat-input-wrapper {
-        background: #2a2a2a;
-    }
 }

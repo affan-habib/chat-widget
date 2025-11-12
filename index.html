@@ -275,6 +275,11 @@
             return currentUser && currentUser.token && currentUser.is_verified;
         }
 
+        function handleUnauthorizedResponse(context = 'request') {
+            console.warn(`Received 401 during ${context}. Clearing session and logging out.`);
+            logout();
+        }
+
         // API Functions
         async function initiateChat(name, phone, email) {
             const endpoint = 'https://omnitrix.servicesmanagement.us/api/v1/customer/initiate-chat';
@@ -293,6 +298,9 @@
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleUnauthorizedResponse('initiateChat');
+                    }
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
@@ -328,6 +336,9 @@
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleUnauthorizedResponse('verifyOtp');
+                    }
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
@@ -363,6 +374,9 @@
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleUnauthorizedResponse('getConversations');
+                    }
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
@@ -426,6 +440,9 @@
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleUnauthorizedResponse('sendMessage');
+                    }
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
@@ -460,6 +477,9 @@
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleUnauthorizedResponse('resendOtp');
+                    }
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
@@ -673,18 +693,17 @@
 
         function handleClose() {
             console.log('Close button clicked');
-            console.log('Window parent check:', window.parent !== window);
-            console.log('Window location:', window.location.href);
-            console.log('Parent location:', window.parent.location !== window.location);
-            
+
             // Stop auto-refresh when closing
             stopConversationAutoRefresh();
+            
+            const isIframe = window.parent && window.parent !== window;
             
             if (window.ReactNativeWebView) {
                 // In React Native WebView - send message to the app
                 console.log('Closing in React Native WebView');
                 window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'close' }));
-            } else if (window.parent && window.parent !== window) {
+            } else if (isIframe) {
                 // In iframe - send message to parent
                 console.log('Closing iframe, sending message to parent');
                 window.parent.postMessage({ action: 'close' }, '*');
@@ -1302,6 +1321,11 @@
 
                         // Hide OTP verification and show chat interface
                         showChatInterface();
+
+                        // Begin periodic refresh now that the user is verified
+                        if (currentUser.token) {
+                            startConversationAutoRefresh();
+                        }
                         
                     } catch (error) {
                         console.error('Failed to verify OTP:', error);
